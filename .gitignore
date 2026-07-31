@@ -4,3 +4,7 @@ log/
 __pycache__/
 *.pyc
 *.egg-info/
+
+# tf2_tools view_frames 산출물
+*.gv
+*.pdf

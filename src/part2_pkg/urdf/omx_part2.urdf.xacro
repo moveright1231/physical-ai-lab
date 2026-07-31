@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<robot name="open_manipulator_x" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Part 2 needs geometry only: no Gazebo physics, no ros2_control. -->
+  <xacro:include
+    filename="$(find open_manipulator_x_description)/gazebo/materials.xacro" />
+  <xacro:include
+    filename="$(find open_manipulator_x_description)/urdf/open_manipulator_x.urdf.xacro" />
+
+  <xacro:open_manipulator_x prefix="" />
+
+  <link name="world"/>
+  <joint name="world_fixed" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="world"/>
+    <child link="link1"/>
+  </joint>
+
+</robot>

@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 
@@ -32,7 +33,7 @@ def main():
     node = JointCommander()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()

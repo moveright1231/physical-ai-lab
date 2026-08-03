@@ -1,0 +1,249 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="mm_mock">
+
+  <!-- =====================================================================
+       Part 3 자립 실습용 모바일 매니퓰레이터 (mock hardware)
+       바퀴 2개 + 팔 4관절을 한 로봇에 넣어 ch09/ch10/ch11을 Gazebo 없이 검증
+
+       ★ 치수 출처 (임의로 바꾸지 말 것)
+         - 바퀴  : TurtleBot3 Waffle 공식 제원
+         - 팔    : part2_pkg/ik_solve.py, fk_check.py 의 FK 상수와 완전 동일
+                   -> 같은 관절각을 명령하면 Part 2 FK와 같은 좌표가 나와야 함
+       ===================================================================== -->
+
+  <xacro:property name="wheel_radius"     value="0.033"/>
+  <xacro:property name="wheel_separation" value="0.287"/>
+  <xacro:property name="base_z_off"       value="0.010"/>
+  <xacro:property name="arm_mount_z"      value="0.100"/>
+
+  <!-- part2_pkg/ik_solve.py:10-15 와 1:1 대응 -->
+  <xacro:property name="BASE_X" value="0.012"/>
+  <xacro:property name="BASE_Z" value="0.017"/>
+  <xacro:property name="D2"     value="0.0595"/>
+  <xacro:property name="E_X"    value="0.024"/>
+  <xacro:property name="E_Z"    value="0.128"/>
+  <xacro:property name="L2"     value="0.124"/>
+  <xacro:property name="L3"     value="0.126"/>
+
+  <material name="grey">  <color rgba="0.35 0.35 0.38 1"/></material>
+  <material name="dark">  <color rgba="0.10 0.10 0.10 1"/></material>
+  <material name="orange"><color rgba="0.90 0.45 0.10 1"/></material>
+
+  <xacro:macro name="dummy_inertial" params="m:=0.1">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- ================= 이동부 (TurtleBot3 Waffle) ================= -->
+
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.03"/>
+      <geometry><box size="0.266 0.266 0.06"/></geometry>
+      <material name="grey"/>
+    </visual>
+    <xacro:dummy_inertial m="1.0"/>
+  </link>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child  link="base_link"/>
+    <origin xyz="0 0 ${base_z_off}"/>
+  </joint>
+
+  <link name="wheel_left_link">
+    <visual>
+      <origin rpy="1.5707963 0 0"/>
+      <geometry><cylinder radius="${wheel_radius}" length="0.018"/></geometry>
+      <material name="dark"/>
+    </visual>
+    <xacro:dummy_inertial/>
+  </link>
+
+  <joint name="wheel_left_joint" type="continuous">
+    <parent link="base_link"/>
+    <child  link="wheel_left_link"/>
+    <origin xyz="0 ${wheel_separation/2} ${wheel_radius - base_z_off}"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="wheel_right_link">
+    <visual>
+      <origin rpy="1.5707963 0 0"/>
+      <geometry><cylinder radius="${wheel_radius}" length="0.018"/></geometry>
+      <material name="dark"/>
+    </visual>
+    <xacro:dummy_inertial/>
+  </link>
+
+  <joint name="wheel_right_joint" type="continuous">
+    <parent link="base_link"/>
+    <child  link="wheel_right_link"/>
+    <origin xyz="0 ${-wheel_separation/2} ${wheel_radius - base_z_off}"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="caster_link">
+    <visual>
+      <geometry><sphere radius="0.012"/></geometry>
+      <material name="dark"/>
+    </visual>
+    <xacro:dummy_inertial m="0.01"/>
+  </link>
+
+  <joint name="caster_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="caster_link"/>
+    <origin xyz="-0.10 0 ${0.012 - base_z_off}"/>
+  </joint>
+
+  <!-- ================= 팔 (OpenMANIPULATOR-X) =================
+       link1 프레임 = Part 2 FK 의 기준 프레임.
+       link1 -> end_effector 의 TF 가 fk_check.py 결과와 일치해야 정상.
+       ========================================================== -->
+
+  <link name="link1">
+    <visual>
+      <origin xyz="0 0 0.0085"/>
+      <geometry><box size="0.05 0.05 0.017"/></geometry>
+      <material name="grey"/>
+    </visual>
+    <xacro:dummy_inertial/>
+  </link>
+
+  <joint name="arm_mount_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="link1"/>
+    <origin xyz="0 0 ${arm_mount_z}"/>
+  </joint>
+
+  <link name="link2">
+    <visual>
+      <origin xyz="0 0 ${D2/2}"/>
+      <geometry><cylinder radius="0.018" length="${D2}"/></geometry>
+      <material name="orange"/>
+    </visual>
+    <xacro:dummy_inertial/>
+  </link>
+
+  <joint name="joint1" type="revolute">
+    <parent link="link1"/>
+    <child  link="link2"/>
+    <origin xyz="${BASE_X} 0 ${BASE_Z}"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.142" upper="3.142" effort="1.0" velocity="4.8"/>
+  </joint>
+
+  <link name="link3">
+    <visual>
+      <origin xyz="${E_X/2} 0 ${E_Z/2}" rpy="0 ${atan2(E_X, E_Z)} 0"/>
+      <geometry><cylinder radius="0.015" length="${sqrt(E_X*E_X + E_Z*E_Z)}"/></geometry>
+      <material name="orange"/>
+    </visual>
+    <xacro:dummy_inertial/>
+  </link>
+
+  <joint name="joint2" type="revolute">
+    <parent link="link2"/>
+    <child  link="link3"/>
+    <origin xyz="0 0 ${D2}"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.050" upper="1.571" effort="1.0" velocity="4.8"/>
+  </joint>
+
+  <link name="link4">
+    <visual>
+      <origin xyz="${L2/2} 0 0" rpy="0 1.5707963 0"/>
+      <geometry><cylinder radius="0.015" length="${L2}"/></geometry>
+      <material name="orange"/>
+    </visual>
+    <xacro:dummy_inertial/>
+  </link>
+
+  <joint name="joint3" type="revolute">
+    <parent link="link3"/>
+    <child  link="link4"/>
+    <origin xyz="${E_X} 0 ${E_Z}"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.571" upper="1.530" effort="1.0" velocity="4.8"/>
+  </joint>
+
+  <link name="link5">
+    <visual>
+      <origin xyz="${L3/2} 0 0" rpy="0 1.5707963 0"/>
+      <geometry><cylinder radius="0.013" length="${L3}"/></geometry>
+      <material name="orange"/>
+    </visual>
+    <xacro:dummy_inertial/>
+  </link>
+
+  <joint name="joint4" type="revolute">
+    <parent link="link4"/>
+    <child  link="link5"/>
+    <origin xyz="${L2} 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.800" upper="2.000" effort="1.0" velocity="4.8"/>
+  </joint>
+
+  <link name="end_effector">
+    <visual>
+      <geometry><sphere radius="0.008"/></geometry>
+      <material name="dark"/>
+    </visual>
+    <xacro:dummy_inertial m="0.01"/>
+  </link>
+
+  <joint name="ee_joint" type="fixed">
+    <parent link="link5"/>
+    <child  link="end_effector"/>
+    <origin xyz="${L3} 0 0"/>
+  </joint>
+
+  <!-- ================= ros2_control : mock hardware ================= -->
+
+  <ros2_control name="MMMockSystem" type="system">
+
+    <hardware>
+      <plugin>mock_components/GenericSystem</plugin>
+      <param name="calculate_dynamics">true</param>
+    </hardware>
+
+    <joint name="joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint2">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint3">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint4">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <joint name="wheel_left_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="wheel_right_joint">
+      <command_interface name="velocity"/>
+      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+
+  </ros2_control>
+
+</robot>
